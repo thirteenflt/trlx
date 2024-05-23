@@ -184,6 +184,7 @@ class PPOConfig(MethodConfig):
         ref_full_logprobs: TensorType["batch_size", "response_size", "model_size"],
         full_logprobs: TensorType["batch_size", "response_size", "model_size"],
         alpha: float,
+        reward_std: float,
     ):
         """PPO objective function.
         References:
@@ -207,11 +208,7 @@ class PPOConfig(MethodConfig):
         # Unbiased KL-div estimates (`k3`). Ref: http://joschu.net/blog/kl-approx.html
         with torch.no_grad():
             approx_kl = torch.mean((ratio - 1) - log_ratio)
-        
-        log_ratio = (full_logprobs - ref_full_logprobs)
-        ratio = torch.exp(full_logprobs)
-        kl_to_ref = torch.sum(torch.sum((ratio - 1) - log_ratio, axis=-1) * mask) / n
-
+    
         pg_loss1 = -advantages * ratio
         pg_loss2 = -advantages * torch.clamp(
             ratio,
@@ -220,6 +217,13 @@ class PPOConfig(MethodConfig):
         )
         pg_loss = torch.sum(torch.max(pg_loss1, pg_loss2) * mask) / n
         pg_clipfrac = torch.sum((pg_loss2 > pg_loss1).float() * mask) / n
+
+        # calculate kl loss
+        log_ratio = (full_logprobs - ref_full_logprobs)
+        ratio = torch.exp(full_logprobs)
+        kl_to_ref = torch.sum(torch.sum((ratio - 1) - log_ratio, axis=-1) * mask) / n
+
+        kl_to_ref /= reward_std
 
         loss = (1-alpha) * pg_loss + self.vf_coef * vf_loss + alpha * kl_to_ref
 
