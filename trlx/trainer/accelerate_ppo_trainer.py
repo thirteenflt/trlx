@@ -455,12 +455,12 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
             if self.config.model.model_arch_type == "seq2seq":
                 logprobs = logprobs_of_labels(logits[:, :-1, :], sample_outputs[:, 1:])
                 ref_logprobs = logprobs_of_labels(ref_logits[:, :-1, :], sample_outputs[:, 1:])
-                full_ref_logprobs = F.log_softmax(ref_logits[:, :-1, :], dim=-1)
+                #full_ref_logprobs = F.log_softmax(ref_logits[:, :-1, :], dim=-1)
             else:
                 # NOTE: logprob[i] is (log)prob at which all_token[i+1] was sampled
                 logprobs = logprobs_of_labels(logits[:, :-1, :], all_tokens[:, 1:])
                 ref_logprobs = logprobs_of_labels(ref_logits[:, :-1, :], all_tokens[:, 1:])
-                full_ref_logprobs = F.log_softmax(ref_logits[:, :-1, :], dim=-1)
+                #full_ref_logprobs = F.log_softmax(ref_logits[:, :-1, :], dim=-1)
 
             n_samples: int = samples.shape[0]
 
@@ -488,7 +488,7 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
             ends = start + attention_mask[:, start:].sum(1) + 1
             all_values = [values[ix, start : ends[ix]] for ix in range(n_samples)]
             all_logprobs = [logprobs[ix, start : ends[ix]] for ix in range(n_samples)]
-            all_ref_full_logprobs = [full_ref_logprobs[ix, start : ends[ix]] for ix in range(n_samples)]
+            all_ref_full_logprobs = [ref_logprobs[ix, start : ends[ix]] for ix in range(n_samples)]
 
             kl_penalty = self.kl_ctl.value * -log_ratio.cpu()
             kl_penalty = [xs[start : ends[ix]] for ix, xs in enumerate(kl_penalty)]

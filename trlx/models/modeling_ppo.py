@@ -184,7 +184,7 @@ class PPOConfig(MethodConfig):
         ref_full_logprobs: TensorType["batch_size", "response_size", "model_size"],
         full_logprobs: TensorType["batch_size", "response_size", "model_size"],
         alpha: float,
-        reward_std: float,
+        reward_std,
     ):
         """PPO objective function.
         References:
@@ -219,11 +219,11 @@ class PPOConfig(MethodConfig):
         pg_clipfrac = torch.sum((pg_loss2 > pg_loss1).float() * mask) / n
 
         # calculate kl loss
-        ref_log_ratio = (full_logprobs - ref_full_logprobs)
+        ref_log_ratio = (full_logprobs - ref_full_logprobs) * mask
         ref_ratio = torch.exp(ref_log_ratio)
-        kl_to_ref = torch.sum(torch.sum((ref_ratio - 1) - ref_log_ratio, axis=-1) * mask) / n
+        kl_to_ref = torch.sum((ref_ratio - 1) - ref_log_ratio) / n
         
-        #kl_to_ref /= reward_std
+        kl_to_ref /= reward_std.detatch()
 
         loss = (1-alpha) * pg_loss + self.vf_coef * vf_loss + alpha * kl_to_ref
 
