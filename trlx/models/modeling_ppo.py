@@ -219,9 +219,9 @@ class PPOConfig(MethodConfig):
         pg_clipfrac = torch.sum((pg_loss2 > pg_loss1).float() * mask) / n
 
         # calculate kl loss
-        log_ratio = (full_logprobs - ref_full_logprobs)
-        ratio = torch.exp(full_logprobs)
-        kl_to_ref = torch.sum(torch.sum((ratio - 1) - log_ratio, axis=-1) * mask) / n
+        ref_log_ratio = (full_logprobs - ref_full_logprobs)
+        ref_ratio = torch.exp(full_logprobs)
+        kl_to_ref = torch.sum(torch.sum((ref_ratio - 1) - ref_log_ratio, axis=-1) * mask) / n
 
         kl_to_ref /= reward_std
 
