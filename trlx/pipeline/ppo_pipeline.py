@@ -47,6 +47,11 @@ def ppo_collate_fn(padding_side: str, pad_token_id: int, elems: Iterable[PPORLEl
             padding_value=0.0,
             batch_first=True,
         ),
+        pad_sequence(
+            [elem.ref_full_logprobs for elem in elems],
+            padding_value=0.0,
+            batch_first=True,
+        ),
     )
 
 
