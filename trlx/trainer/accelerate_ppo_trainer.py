@@ -519,7 +519,7 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
                         logprobs=all_logprobs[sample_idx],
                         values=all_values[sample_idx],
                         rewards=rewards,
-                        ref_full_logprobs=all_ref_full_logprobs,
+                        ref_full_logprobs=all_ref_full_logprobs[sample_idx],
                     )
                 )
 
