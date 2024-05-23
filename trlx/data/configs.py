@@ -231,6 +231,8 @@ class TrainConfig:
 
     minibatch_size: Optional[int] = None
 
+    final_alpha: float = 0.01
+
     @classmethod
     def from_dict(cls, config: Dict[str, Any]):
         return cls(**config)

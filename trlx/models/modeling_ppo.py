@@ -181,6 +181,9 @@ class PPOConfig(MethodConfig):
         advantages: TensorType["batch_size", "response_size"],
         returns: TensorType["batch_size", "response_size"],
         mask: TensorType["batch_size", "response_size"],
+        ref_full_logprobs: TensorType["batch_size", "response_size", "model_size"],
+        full_logprobs: TensorType["batch_size", "response_size", "model_size"],
+        alpha: float,
     ):
         """PPO objective function.
         References:
@@ -204,6 +207,10 @@ class PPOConfig(MethodConfig):
         # Unbiased KL-div estimates (`k3`). Ref: http://joschu.net/blog/kl-approx.html
         with torch.no_grad():
             approx_kl = torch.mean((ratio - 1) - log_ratio)
+        
+        log_ratio = (full_logprobs - ref_full_logprobs)
+        ratio = torch.exp(full_logprobs)
+        kl_to_ref = torch.sum(torch.sum((ratio - 1) - log_ratio, axis=-1) * mask) / n
 
         pg_loss1 = -advantages * ratio
         pg_loss2 = -advantages * torch.clamp(
@@ -214,13 +221,14 @@ class PPOConfig(MethodConfig):
         pg_loss = torch.sum(torch.max(pg_loss1, pg_loss2) * mask) / n
         pg_clipfrac = torch.sum((pg_loss2 > pg_loss1).float() * mask) / n
 
-        loss = pg_loss + self.vf_coef * vf_loss
+        loss = (1-alpha) * pg_loss + self.vf_coef * vf_loss + alpha * kl_to_ref
 
         stats = dict(
             losses=dict(
                 total_loss=loss.item(),
                 policy_loss=pg_loss.item(),
                 value_loss=vf_loss.item(),
+                kl_loss=kl_to_ref.item(),
             ),
             values=dict(
                 get_tensor_stats(values, mask, n),
@@ -233,6 +241,7 @@ class PPOConfig(MethodConfig):
             policy=dict(approx_kl=approx_kl.item(), clipfrac=pg_clipfrac.item()),
             ratio=(ratio * mask).sum() / n,
             padding_percentage=1 - n / mask.numel(),
+            alpha=alpha,
         )
 
         return loss, flatten_dict(stats)

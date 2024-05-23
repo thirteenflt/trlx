@@ -124,6 +124,16 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
             **self.config.model.model_extra_configs,
         )
 
+    def anneal_alpha(self):
+        relative_step = self.iter_count - 100
+        anneal_steps = 6000
+        steps_in_period = max(0, min(relative_step, anneal_steps))
+        non_fraction = (anneal_steps - steps_in_period) / max(1, anneal_steps)
+        fraction = 1 - non_fraction
+        final_alpha = self.config.train.final_alpha
+        return final_alpha / (non_fraction * final_alpha + fraction)
+
+
     def loss(self, batch: PPORLBatch) -> Tuple[float, Dict[str, Any]]:
         """Computes loss on a batch of data and returns statistics
 
@@ -141,6 +151,7 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
         old_values = batch.values.to(self.accelerator.device)
         old_rewards = batch.rewards.to(self.accelerator.device)
         response_length = old_rewards.shape[1]
+        ref_full_logprobs = batch.ref_full_logprobs
 
         advantages, returns = self.config.method.get_advantages_and_returns(old_values, old_rewards, response_length)
 
@@ -182,15 +193,15 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
             values_pred = outputs.value
             values_pred = values_pred[:, :-1]
             logprobs = logprobs_of_labels(logits[:, :-1, :], tokens[:, 1:])
-
+            full_logprobs = F.log_softmax(logits[:, :-1, :], dim=-1)
             start = query_tensors.shape[1] - 1
             end = start + response_length
-            logprobs, values_pred, mask = (
+            logprobs, values_pred, mask, full_logprobs = (
                 logprobs[:, start:end],
                 values_pred[:, start:end],
                 attention_mask[:, start + 1 : end + 1],
+                full_logprobs[:, start:end]
             )
-
         loss, stats = self.config.method.loss(
             logprobs=logprobs,
             values=values_pred,
@@ -199,6 +210,9 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
             advantages=advantages,
             returns=returns,
             mask=mask,
+            ref_full_logprobs=ref_full_logprobs,
+            full_logprobs=full_logprobs,
+            alpha=self.anneal_alpha(),
         )
 
         return loss, stats
@@ -440,10 +454,12 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
             if self.config.model.model_arch_type == "seq2seq":
                 logprobs = logprobs_of_labels(logits[:, :-1, :], sample_outputs[:, 1:])
                 ref_logprobs = logprobs_of_labels(ref_logits[:, :-1, :], sample_outputs[:, 1:])
+                full_ref_logprobs = F.log_softmax(ref_logits[:, :-1, :], dim=-1)
             else:
                 # NOTE: logprob[i] is (log)prob at which all_token[i+1] was sampled
                 logprobs = logprobs_of_labels(logits[:, :-1, :], all_tokens[:, 1:])
                 ref_logprobs = logprobs_of_labels(ref_logits[:, :-1, :], all_tokens[:, 1:])
+                full_ref_logprobs = F.log_softmax(ref_logits[:, :-1, :], dim=-1)
 
             n_samples: int = samples.shape[0]
 
@@ -471,6 +487,7 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
             ends = start + attention_mask[:, start:].sum(1) + 1
             all_values = [values[ix, start : ends[ix]] for ix in range(n_samples)]
             all_logprobs = [logprobs[ix, start : ends[ix]] for ix in range(n_samples)]
+            all_ref_full_logprobs = [full_ref_logprobs[ix, start : ends[ix]] for ix in range(n_samples)]
 
             kl_penalty = self.kl_ctl.value * -log_ratio.cpu()
             kl_penalty = [xs[start : ends[ix]] for ix, xs in enumerate(kl_penalty)]
@@ -479,6 +496,10 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
 
             for sample_idx in range(n_samples):
                 rewards = kl_penalty[sample_idx]
+                # # remove kl in per_token_reward
+                # logging.info("remove kl in per_token_reward")
+                # for i in range(len(rewards)-1):
+                #     rewards[i] = 0
                 # Then add in rewards
                 if scores.shape[1] == 1:
                     # NOTE: Final reward given at EOS token following HHH practice
@@ -498,6 +519,7 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
                         logprobs=all_logprobs[sample_idx],
                         values=all_values[sample_idx],
                         rewards=rewards,
+                        ref_full_logprobs=all_ref_full_logprobs,
                     )
                 )
 
