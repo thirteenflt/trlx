@@ -220,10 +220,10 @@ class PPOConfig(MethodConfig):
 
         # calculate kl loss
         ref_log_ratio = (full_logprobs - ref_full_logprobs)
-        ref_ratio = torch.exp(full_logprobs)
+        ref_ratio = torch.exp(ref_log_ratio)
         kl_to_ref = torch.sum(torch.sum((ref_ratio - 1) - ref_log_ratio, axis=-1) * mask) / n
-
-        kl_to_ref /= reward_std
+        
+        #kl_to_ref /= reward_std
 
         loss = (1-alpha) * pg_loss + self.vf_coef * vf_loss + alpha * kl_to_ref
 
