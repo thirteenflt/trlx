@@ -211,6 +211,7 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
             ref_logprobs=ref_logprobs,
             alpha=self.anneal_alpha(),
             reward_std=self.running_moments.std,
+            ignore_value=True,
         )
 
         return loss, stats
