@@ -506,6 +506,15 @@ class AccelerateRLTrainer(BaseRLTrainer):
 
                 mlflow.log_text("\n".join(json_contents), f"eval_{self.iter_count}.jsonl")
 
+                rich_table = Table(*columns, title=table_title, show_lines=True)
+                for ix in range(len(rows)):
+                    rich_table.add_row(*[str(significant(x)) for x in rows[ix]])
+                rich_tale_file_name = f"eval_{self.iter_count}.txt"
+                with open(rich_tale_file_name, "wt", encoding="utf-8") as report_file:
+                    console = Console(file=report_file)
+                    console.print(rich_table)
+                mlflow.log_artifact(rich_tale_file_name)
+
         self.nth_evaluation += 1
         return stats
 
