@@ -231,7 +231,8 @@ class TrainConfig:
 
     minibatch_size: Optional[int] = None
 
-    final_alpha: float = 0.01
+    final_alpha: float = 0.25
+    exclude_kl_at_reward: bool = True
 
     @classmethod
     def from_dict(cls, config: Dict[str, Any]):

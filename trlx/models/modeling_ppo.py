@@ -171,6 +171,24 @@ class PPOConfig(MethodConfig):
         if use_whitening:
             advantages = whiten(advantages)
         return advantages.detach(), returns
+ 
+    def get_nongae_advantages_and_returns(
+        self,
+        values: TensorType["batch_size", "response_size"],
+        rewards: TensorType["batch_size", "response_size"],
+        response_length: int,
+        use_whitening: Optional[bool] = True,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        sequence_rewards = torch.sum(rewards, axis=-1, keepdims=True) #[bs, 1]
+        predictions = torch.mean(values, axis=-1, keepdims=True) #[bs, 1]
+        advantages = sequence_rewards - predictions #[bs, 1]
+        response_size = values.size()[-1]
+        advantages = advantages.expand([-1, response_size]) #[bs, response_size]
+        returns = advantages + values #[bs, response_size]
+        if use_whitening:
+            advantages = whiten(advantages)
+        return advantages.detach(), returns
+
 
     def loss(
         self,
@@ -181,8 +199,7 @@ class PPOConfig(MethodConfig):
         advantages: TensorType["batch_size", "response_size"],
         returns: TensorType["batch_size", "response_size"],
         mask: TensorType["batch_size", "response_size"],
-        ref_full_logprobs: TensorType["batch_size", "response_size"],
-        #full_logprobs: TensorType["batch_size", "response_size"],
+        ref_logprobs: TensorType["batch_size", "response_size"],
         alpha: float,
         reward_std,
     ):
@@ -219,7 +236,7 @@ class PPOConfig(MethodConfig):
         pg_clipfrac = torch.sum((pg_loss2 > pg_loss1).float() * mask) / n
 
         # calculate kl loss
-        ref_log_ratio = (logprobs - ref_full_logprobs) * mask
+        ref_log_ratio = (logprobs - ref_logprobs) * mask
         ref_ratio = torch.exp(ref_log_ratio)
         kl_to_ref = torch.sum((ref_ratio - 1) - ref_log_ratio) / n
         
