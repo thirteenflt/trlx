@@ -223,7 +223,7 @@ class PPOConfig(MethodConfig):
         ref_ratio = torch.exp(ref_log_ratio)
         kl_to_ref = torch.sum((ref_ratio - 1) - ref_log_ratio) / n
         
-        kl_to_ref /= reward_std.detach()
+        # kl_to_ref /= reward_std.detach()
 
         loss = (1-alpha) * pg_loss + self.vf_coef * vf_loss + alpha * kl_to_ref
 
