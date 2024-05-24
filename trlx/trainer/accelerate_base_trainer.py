@@ -495,6 +495,16 @@ class AccelerateRLTrainer(BaseRLTrainer):
                 import wandb
 
                 stats["samples"] = wandb.Table(columns, rows)
+            elif self.config.train.tracker == "mlflow":
+                import mlflow
+                json_contents = []
+                for row in rows:
+                    x = {}
+                    for i, col in enumerate(columns):
+                        x[col] = row[i]
+                    json_contents.append(json.dumps(x))
+
+                mlflow.log_text("\n".join(json_contents), f"eval_{self.iter_count}.jsonl")
 
         self.nth_evaluation += 1
         return stats
