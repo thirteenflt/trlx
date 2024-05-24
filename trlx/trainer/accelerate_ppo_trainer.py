@@ -151,7 +151,7 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
         old_values = batch.values.to(self.accelerator.device)
         old_rewards = batch.rewards.to(self.accelerator.device)
         response_length = old_rewards.shape[1]
-        ref_full_logprobs = batch.ref_full_logprobs
+        ref_full_logprobs = batch.ref_full_logprobs.to(self.accelerator.device)
 
         advantages, returns = self.config.method.get_advantages_and_returns(old_values, old_rewards, response_length)
 
