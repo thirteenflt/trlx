@@ -202,23 +202,28 @@ class PPOConfig(MethodConfig):
         ref_logprobs: TensorType["batch_size", "response_size"],
         alpha: float,
         reward_std,
+        ignore_value: bool,
     ):
         """PPO objective function.
         References:
         - https://stable-baselines.readthedocs.io/en/master/modules/ppo2.html
         """
-        values_clipped = torch.clamp(
-            values,
-            old_values - self.cliprange_value,
-            old_values + self.cliprange_value,
-        )
         n = mask.sum()
+        if not ignore_value:
+            values_clipped = torch.clamp(
+                values,
+                old_values - self.cliprange_value,
+                old_values + self.cliprange_value,
+            )
 
-        vf_loss1 = (values - returns) ** 2
-        vf_loss2 = (values_clipped - returns) ** 2
-        vf_loss = 0.5 * torch.sum(torch.max(vf_loss1, vf_loss2) * mask) / n
+            vf_loss1 = (values - returns) ** 2
+            vf_loss2 = (values_clipped - returns) ** 2
+            vf_loss = 0.5 * torch.sum(torch.max(vf_loss1, vf_loss2) * mask) / n
 
-        vf_clipfrac = torch.sum((vf_loss2 > vf_loss1).float() * mask) / n
+            vf_clipfrac = torch.sum((vf_loss2 > vf_loss1).float() * mask) / n
+        else:
+            vf_loss = torch.tensor(0)
+            vf_clipfrac = torch.tensor(0)
 
         log_ratio = (logprobs - old_logprobs) * mask
         ratio = torch.exp(log_ratio)
@@ -241,8 +246,10 @@ class PPOConfig(MethodConfig):
         kl_to_ref = torch.sum((ref_ratio - 1) - ref_log_ratio) / n
         
         # kl_to_ref /= reward_std.detach()
-
-        loss = (1-alpha) * pg_loss + self.vf_coef * vf_loss + alpha * kl_to_ref
+        if not ignore_value:
+            loss = (1-alpha) * pg_loss + self.vf_coef * vf_loss + alpha * kl_to_ref
+        else:
+            loss = (1-alpha) * pg_loss + alpha * kl_to_ref
 
         stats = dict(
             losses=dict(

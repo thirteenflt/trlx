@@ -153,8 +153,8 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
         response_length = old_rewards.shape[1]
         ref_logprobs = batch.ref_logprobs.to(self.accelerator.device)
 
-        advantages, returns = self.config.method.get_advantages_and_returns(old_values, old_rewards, response_length)
-
+        #advantages, returns = self.config.method.get_advantages_and_returns(old_values, old_rewards, response_length)
+        advantages, returns = old_rewards, old_rewards
         if self.config.model.model_arch_type == "seq2seq":
             input_ids = query_tensors
             decoder_input_ids = response_tensors
