@@ -193,14 +193,14 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
             values_pred = outputs.value
             values_pred = values_pred[:, :-1]
             logprobs = logprobs_of_labels(logits[:, :-1, :], tokens[:, 1:])
-            full_logprobs = F.log_softmax(logits[:, :-1, :], dim=-1)
+            #full_logprobs = F.log_softmax(logits[:, :-1, :], dim=-1)
             start = query_tensors.shape[1] - 1
             end = start + response_length
-            logprobs, values_pred, mask, full_logprobs = (
+            logprobs, values_pred, mask = (
                 logprobs[:, start:end],
                 values_pred[:, start:end],
                 attention_mask[:, start + 1 : end + 1],
-                full_logprobs[:, start:end]
+                #full_logprobs[:, start:end]
             )
         loss, stats = self.config.method.loss(
             logprobs=logprobs,
@@ -211,7 +211,7 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
             returns=returns,
             mask=mask,
             ref_full_logprobs=ref_full_logprobs,
-            full_logprobs=full_logprobs,
+            #full_logprobs=full_logprobs,
             alpha=self.anneal_alpha(),
             reward_std=self.running_moments.std,
         )
