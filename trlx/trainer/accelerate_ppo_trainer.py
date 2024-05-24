@@ -125,7 +125,7 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
         )
 
     def anneal_alpha(self):
-        relative_step = self.iter_count - 100
+        relative_step = self.iter_count - 500
         anneal_steps = 6000
         steps_in_period = max(0, min(relative_step, anneal_steps))
         non_fraction = (anneal_steps - steps_in_period) / max(1, anneal_steps)
