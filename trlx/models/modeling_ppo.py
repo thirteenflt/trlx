@@ -192,6 +192,8 @@ class PPOConfig(MethodConfig):
             old_values + self.cliprange_value,
         )
         n = mask.sum()
+        if n == 0:
+            print("batch is empty")
 
         vf_loss1 = (values - returns) ** 2
         vf_loss2 = (values_clipped - returns) ** 2
