@@ -604,7 +604,11 @@ class AccelerateRLTrainer(BaseRLTrainer):
                     # TODO(Dahoas): Best way to combine stats between mbs?
                     # How does accelerate do it?
                     stats = {key: sum([stats[key] for stats in stats_accum]) / self.num_mb for key in stats_accum[0]}
-
+                    for name, param in self.model.named_parameters():
+                        if param.grad is not None and torch.isnan(param.grad).any():
+                            logger.info(f"NaN in gradients of {name}")
+                            break
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
                     self.opt.step()
                     self.opt.zero_grad()
                     self.scheduler.step()
