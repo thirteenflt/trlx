@@ -105,6 +105,7 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
         self.ref_mean = self.config.method.ref_mean
         self.ref_std = self.config.method.ref_std
 
+
     def get_arch(self, config: TRLConfig):
         """Returns a specific wrapper given a model's architecture"""
         model_class = AutoModelForCausalLMWithHydraValueHead
@@ -341,7 +342,11 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
             scores_mask = scores != -np.inf
 
             str_samples, str_prompts, str_outputs = self.decode(prompt_tensors, samples, append_eos_token=True)
-
+            for o,p,s in zip(str_outputs, str_prompts, str_samples):
+                if len(o) == 0:
+                    print("empty output:", o)
+                    print("prompt:", p)
+                    print("sample:", s)
             # Pad the sample outputs
             outputs = self.tokenizer(str_outputs).input_ids
             if self.config.model.model_arch_type == "seq2seq":
