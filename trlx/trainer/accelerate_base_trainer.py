@@ -235,6 +235,9 @@ class AccelerateRLTrainer(BaseRLTrainer):
                         str_output = str_output[:stop_ix].rstrip()
                         trimmed = True
 
+            if trimmed:
+                print(str_output)
+
             # Recover the last <eos> if it was present in the original sample
             # or add one if it was trimmed with `self.stop_sequences`.
             # When a generation ended due to `max_new_tokens` exhaustion,
