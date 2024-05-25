@@ -235,8 +235,10 @@ class AccelerateRLTrainer(BaseRLTrainer):
                         str_output = str_output[:stop_ix].rstrip()
                         trimmed = True
 
-            if trimmed:
-                print(str_output)
+            if len(str_output) == 0:
+                print("e prompt:", self.tokenizer.decode(prompt[:prompt_size], skip_special_tokens=False))
+                print("e output:",  self.tokenizer.decode(sample[output_start_ix:], skip_special_tokens=False))
+                print("e sample:",  self.tokenizer.decode(sample, skip_special_tokens=False))
 
             # Recover the last <eos> if it was present in the original sample
             # or add one if it was trimmed with `self.stop_sequences`.
