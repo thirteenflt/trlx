@@ -303,7 +303,7 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
 
             if self.accelerator.is_main_process:
                 all_str_samples, all_str_prompts, all_str_outputs = self.decode(
-                    gathered_prompts, gathered_samples, gathered_prompt_sizes, append_eos_token=False
+                    gathered_prompts, gathered_samples, gathered_prompt_sizes, append_eos_token=True
                 )
 
                 rollout_score_time = time()
@@ -341,12 +341,7 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
                 scores = all_scores[0].clone().detach()
             scores_mask = scores != -np.inf
 
-            str_samples, str_prompts, str_outputs = self.decode(prompt_tensors, samples, append_eos_token=False)
-            for o,p,s in zip(str_outputs, str_prompts, str_samples):
-                if len(o) == 0:
-                    print("empty output:", o)
-                    print("prompt:", p)
-                    print("sample:", s)
+            str_samples, str_prompts, str_outputs = self.decode(prompt_tensors, samples, append_eos_token=True)
             # Pad the sample outputs
             outputs = self.tokenizer(str_outputs).input_ids
             if self.config.model.model_arch_type == "seq2seq":
