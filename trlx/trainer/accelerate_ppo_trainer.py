@@ -125,6 +125,15 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
             **self.config.model.model_extra_configs,
         )
 
+    def anneal_alpha(self):
+        relative_step = self.iter_count - self.config.train.delay_anneal_steps
+        anneal_steps = 6000
+        steps_in_period = max(0, min(relative_step, anneal_steps))
+        non_fraction = (anneal_steps - steps_in_period) / max(1, anneal_steps)
+        fraction = 1 - non_fraction
+        final_alpha = self.config.train.final_alpha
+        return final_alpha / (non_fraction * final_alpha + fraction)
+
     def loss(self, batch: PPORLBatch) -> Tuple[float, Dict[str, Any]]:
         """Computes loss on a batch of data and returns statistics
 
@@ -142,6 +151,7 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
         old_values = batch.values.to(self.accelerator.device)
         old_rewards = batch.rewards.to(self.accelerator.device)
         response_length = old_rewards.shape[1]
+        ref_logprobs = batch.ref_logprobs.to(self.accelerator.device)
 
         advantages, returns = self.config.method.get_advantages_and_returns(old_values, old_rewards, response_length)
 
@@ -200,6 +210,8 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
             advantages=advantages,
             returns=returns,
             mask=mask,
+            ref_logprobs=ref_logprobs,
+            alpha=self.anneal_alpha(),
         )
 
         return loss, stats
@@ -471,6 +483,7 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
             ends = start + attention_mask[:, start:].sum(1) + 1
             all_values = [values[ix, start : ends[ix]] for ix in range(n_samples)]
             all_logprobs = [logprobs[ix, start : ends[ix]] for ix in range(n_samples)]
+            all_ref_logprobs = [ref_logprobs[ix, start : ends[ix]] for ix in range(n_samples)]
 
             kl_penalty = self.kl_ctl.value * -log_ratio.cpu()
             kl_penalty = [xs[start : ends[ix]] for ix, xs in enumerate(kl_penalty)]
@@ -498,6 +511,7 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
                         logprobs=all_logprobs[sample_idx],
                         values=all_values[sample_idx],
                         rewards=rewards,
+                        ref_logprobs=all_ref_logprobs[sample_idx],
                     )
                 )
 

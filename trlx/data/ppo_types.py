@@ -33,6 +33,8 @@ class PPORLElement:
     logprobs: TensorType["response_size"]
     values: TensorType["response_size"]
     rewards: TensorType["response_size"]
+    ref_logprobs: TensorType["response_size"]
+
 
 
 @dataclass
@@ -61,3 +63,4 @@ class PPORLBatch:
     logprobs: TensorType["batch_size", "response_size"]
     values: TensorType["batch_size", "response_size"]
     rewards: TensorType["batch_size", "response_size"]
+    ref_logprobs: TensorType["batch_size", "response_size"]
