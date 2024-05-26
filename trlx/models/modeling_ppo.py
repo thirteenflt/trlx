@@ -198,7 +198,7 @@ class PPOConfig(MethodConfig):
         vf_loss1 = (values - returns) ** 2
         vf_loss2 = (values_clipped - returns) ** 2
         #vf_loss = 0.5 * torch.sum(torch.max(vf_loss1, vf_loss2) * mask) / n
-        vf_loss = 0.5 * torch.sum(vf_loss1 * mask) / n
+        vf_loss = 0.5 * torch.sum(vf_loss2 * mask) / n
 
         vf_clipfrac = torch.sum((vf_loss2 > vf_loss1).float() * mask) / n
 
@@ -215,7 +215,7 @@ class PPOConfig(MethodConfig):
             1.0 + self.cliprange,
         )
         #pg_loss = torch.sum(torch.max(pg_loss1, pg_loss2) * mask) / n
-        pg_loss = torch.sum(pg_loss1 * mask) / n
+        pg_loss = torch.sum(pg_loss2 * mask) / n
         pg_clipfrac = torch.sum((pg_loss2 > pg_loss1).float() * mask) / n
 
         loss = pg_loss + self.vf_coef * vf_loss
