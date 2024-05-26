@@ -200,7 +200,7 @@ class PPOConfig(MethodConfig):
         vf_loss1 = (values - returns) ** 2
         vf_loss2 = (values_clipped - returns) ** 2
         #vf_loss = 0.5 * torch.sum(torch.max(vf_loss1, vf_loss2) * mask) / n
-        vf_loss = 0.5 * torch.sum(vf_loss2 * mask) / n
+        vf_loss = 0.5 * torch.sum(vf_loss1 * mask) / n
 
         vf_clipfrac = torch.sum((vf_loss2 > vf_loss1).float() * mask) / n
 
@@ -217,14 +217,14 @@ class PPOConfig(MethodConfig):
             1.0 + self.cliprange,
         )
         #pg_loss = torch.sum(torch.max(pg_loss1, pg_loss2) * mask) / n
-        pg_loss = torch.sum(pg_loss2 * mask) / n
+        pg_loss = torch.sum(pg_loss1 * mask) / n
         pg_clipfrac = torch.sum((pg_loss2 > pg_loss1).float() * mask) / n
 
         # calculate kl loss between ref model
         ref_log_ratio = (logprobs - ref_logprobs) * mask
         ref_ratio = torch.exp(ref_log_ratio)
         kl_to_ref = torch.sum((ref_ratio - 1) - ref_log_ratio) / n
-        kl_loss = torch.clamp(kl_to_ref, 0, 1)
+        kl_loss = kl_to_ref #torch.clamp(kl_to_ref, 0, 1)
 
         loss = (1-alpha) * pg_loss + self.vf_coef * vf_loss + alpha * kl_loss
 
